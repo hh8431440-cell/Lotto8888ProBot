@@ -2,10 +2,12 @@ import os
 import sys
 import logging
 import asyncio
+import urllib.parse
+import urllib.request
 from aiogram import Bot, Dispatcher, types
 from aiogram.filters import CommandStart
 
-# Logging
+# Setup platform logging
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -18,13 +20,53 @@ if not BOT_TOKEN:
 bot = Bot(token=BOT_TOKEN.strip())
 dp = Dispatcher()
 
+# Helper function to query keyless AI (Pollinations)
+def ask_forex_ai(user_question: str) -> str:
+    system_instruction = (
+        "You are an expert Forex trading assistant. Answer questions clearly, "
+        "concisely, and accurately regarding forex, technical analysis, risk management, "
+        "and trading strategies. Keep responses easy to read on mobile."
+    )
+    prompt = f"{system_instruction}\n\nUser Question: {user_question}"
+    encoded_prompt = urllib.parse.quote(prompt)
+    url = f"https://text.pollinations.ai/{encoded_prompt}"
+    
+    try:
+        req = urllib.request.Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+        with urllib.request.urlopen(req, timeout=15) as response:
+            return response.read().decode('utf-8')
+    except Exception as e:
+        logger.error(f"AI Request error: {e}")
+        return "⚠️ Sorry, I'm having trouble answering right now. Please try again in a moment!"
+
+# Welcome message command handler
 @dp.message(CommandStart())
 async def start_handler(message: types.Message):
-    await message.answer("📈 Welcome to the Forex Training Academy Bot! 🚀")
+    welcome_text = (
+        "📈 *Welcome to Forex Trading Academy Bot!* 🚀\n\n"
+        "Ask me *any question* about Forex trading, currency pairs, technical indicators, "
+        "or risk management, and I will answer you right away!\n\n"
+        "💬 *Example questions you can ask:* \n"
+        "• What is leverage in Forex?\n"
+        "• How do I calculate lot size?\n"
+        "• What is the difference between EUR/USD and GBP/USD?"
+    )
+    await message.answer(welcome_text, parse_mode="Markdown")
+
+# Handle all incoming text messages/questions
+@dp.message()
+async def forex_qa_handler(message: types.Message):
+    # Send 'typing' action so the user knows the bot is working
+    await bot.send_chat_action(chat_id=message.chat.id, action="typing")
+    
+    user_query = message.text
+    # Get answer from AI asynchronously
+    answer = await asyncio.to_thread(ask_forex_ai, user_query)
+    
+    await message.answer(answer)
 
 async def main():
-    logger.info("🚀 Starting polling...")
-    # Delete old webhook just in case before polling
+    logger.info("🚀 Forex Bot active with Keyless AI Q&A polling...")
     await bot.delete_webhook(drop_pending_updates=True)
     await dp.start_polling(bot)
 

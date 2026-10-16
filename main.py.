@@ -1,0 +1,62 @@
+import os
+import sys
+import logging
+import asyncio
+from aiogram import Bot, Dispatcher, types
+from aiogram.filters import CommandStart
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
+
+# Setup platform logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Fetch environment variables
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+
+if not BOT_TOKEN:
+    logger.critical("❌ BOT_TOKEN missing in environment variables!")
+    sys.exit(1)
+
+# Initialize bot and dispatcher
+bot = Bot(token=BOT_TOKEN.strip())
+dp = Dispatcher()
+
+# Welcome message command handler
+@dp.message(CommandStart())
+async def start_handler(message: types.Message):
+    welcome_text = (
+        "📈 *Welcome to Forex Trading Academy!* 🚀\n\n"
+        "Your gateway to mastering currency markets, technical analysis, "
+        "and risk management strategies.\n\n"
+        "Choose an option below to start your trading journey:"
+    )
+    
+    keyboard = InlineKeyboardMarkup(inline_keyboard=[
+        [
+            InlineKeyboardButton(text="📚 Forex Basics", callback_data="basics"),
+            InlineKeyboardButton(text="📊 Risk Management", callback_data="risk")
+        ],
+        [
+            InlineKeyboardButton(text="💡 Technical Indicators", callback_data="indicators")
+        ]
+    ])
+    
+    await message.answer(welcome_text, parse_mode="Markdown", reply_markup=keyboard)
+
+@dp.callback_query()
+async def callback_handler(callback: types.CallbackQuery):
+    if callback.data == "basics":
+        await callback.message.answer("📖 *Forex Basics:* Forex is the foreign exchange market where currencies are traded globally in pairs (e.g., EUR/USD).", parse_mode="Markdown")
+    elif callback.data == "risk":
+        await callback.message.answer("🛡️ *Risk Management:* Always use a Stop Loss and risk no more than 1-2% of your account per trade.", parse_mode="Markdown")
+    elif callback.data == "indicators":
+        await callback.message.answer("📈 *Indicators:* Popular indicators include Moving Averages, RSI, and Support & Resistance levels.", parse_mode="Markdown")
+    
+    await callback.answer()
+
+async def main():
+    logger.info("🚀 Forex Bot active and polling Telegram...")
+    await dp.start_polling(bot)
+
+if __name__ == "__main__":
+    asyncio.run(main())
